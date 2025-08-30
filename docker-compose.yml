@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  docker-mysql:
+    image: mysql
+    container_name: docker-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "9905:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  productservice:
+    build: ./productservice
+    container_name: productservice
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://docker-mysql:3306/aws
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    ports:
+      - "9002:9002"
+    depends_on:
+      - docker-mysql
+      - couponservice
+
+  couponservice:
+    build: ./couponservice
+    container_name: couponservice
+    restart: on-failure
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://docker-mysql:3306/aws
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+    ports:
+      - "9001:9001"
+    depends_on:
+      docker-mysql:
+        condition: service_healthy
+
+volumes:
+  mysql-data:
